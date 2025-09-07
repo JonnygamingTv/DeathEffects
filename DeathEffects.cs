@@ -7,6 +7,7 @@ using Rocket.Unturned;
 using Rocket.API.Collections;
 using Rocket.API;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace DeathEffects
 {
@@ -43,6 +44,7 @@ namespace DeathEffects
             if (Configuration.Instance.EffectsOnConnect)
             {
                 Rocket.Core.Logging.Logger.Log("Effects on Connect Enabled!");
+                U.Events.OnPlayerConnected += OnPlayerConnected;
             }
             else
             {
@@ -52,55 +54,67 @@ namespace DeathEffects
             if (Configuration.Instance.EffectsOnDisconnect)
             {
                 Rocket.Core.Logging.Logger.Log("Effects on Disconnect Enabled!");
+                U.Events.OnPlayerDisconnected += OnPlayerDisconnected;
             }
             else
             {
                 Rocket.Core.Logging.Logger.Log("Effects on Disconnect Disabled!");
             }
 
+            if (Configuration.Instance.EffectsOnDeath)
+            {
+                UnturnedPlayerEvents.OnPlayerDeath += OnPlayerDeath;
+            }
 
-            UnturnedPlayerEvents.OnPlayerDeath += OnPlayerDeath;
-            U.Events.OnPlayerConnected += OnPlayerConnected;
-            U.Events.OnPlayerDisconnected += OnPlayerDisconnected;
+            if (Configuration.Instance.ClearEffectsOnRespawn)
+            {
+                UnturnedPlayerEvents.OnPlayerRevive += OnPlayerRes;
+            }
+
+            Configuration.Instance._Effects = Configuration.Instance.Effects.AsReadOnly();
         }
 
         protected override void Unload()
         {
             Rocket.Core.Logging.Logger.Log("Plugin unloaded!");
             U.Events.OnPlayerConnected -= OnPlayerConnected;
-            UnturnedPlayerEvents.OnPlayerDeath -= OnPlayerDeath;
             U.Events.OnPlayerConnected -= OnPlayerDisconnected;
+            UnturnedPlayerEvents.OnPlayerDeath -= OnPlayerDeath;
+            UnturnedPlayerEvents.OnPlayerRevive -= OnPlayerRes;
         }
 
         public void OnPlayerConnected(UnturnedPlayer player)
         {
-            if (Configuration.Instance.EffectsOnConnect && player.IsAdmin || Configuration.Instance.EffectsOnConnect && player.HasPermission("DeathEffects"))
+            if (player.IsAdmin || Configuration.Instance.EffectsOnConnect && player.HasPermission("DeathEffects"))
             {
-                ushort[] Effects = Instance.Configuration.Instance.Effects.ToArray();
-                for (int i = 0; i < Effects.Length; i++)
-                    EffectManager.sendEffect(Effects[i], 30, player.Position);
+                for (int i = 0; i < Instance.Configuration.Instance._Effects.Count; i++)
+                    EffectManager.sendEffect(Instance.Configuration.Instance._Effects[i], 30, player.Position);
             }
         }
 
         public void OnPlayerDisconnected(UnturnedPlayer player)
         {
-            if (Configuration.Instance.EffectsOnDisconnect && player.IsAdmin || Configuration.Instance.EffectsOnDisconnect && player.HasPermission("DeathEffects"))
+            if (player.IsAdmin || Configuration.Instance.EffectsOnDisconnect && player.HasPermission("DeathEffects"))
             {
-                ushort[] Effects = Instance.Configuration.Instance.Effects.ToArray();
-                for (int i = 0; i < Effects.Length; i++)
-                    EffectManager.sendEffect(Effects[i], 30, player.Position);
+                for (int i = 0; i < Instance.Configuration.Instance._Effects.Count; i++)
+                    EffectManager.sendEffect(Instance.Configuration.Instance._Effects[i], 30, player.Position);
             }
             else { return; }
         }
 
         private void OnPlayerDeath(UnturnedPlayer player, EDeathCause cause, ELimb limb, CSteamID murderer)
         {
-            if (Configuration.Instance.EffectsOnDeath && player.IsAdmin || Configuration.Instance.EffectsOnDeath && player.HasPermission("DeathEffects"))
+            if (player.IsAdmin || Configuration.Instance.EffectsOnDeath && player.HasPermission("DeathEffects"))
             {
-                ushort[] Effects = Instance.Configuration.Instance.Effects.ToArray();
-                for (int i = 0; i < Effects.Length; i++)
-                    EffectManager.sendEffect(Effects[i], 30, player.Position);
+                for (int i = 0; i < Instance.Configuration.Instance._Effects.Count; i++)
+                    EffectManager.sendEffect(Instance.Configuration.Instance._Effects[i], 30, player.Position);
             }
+        }
+
+        public void OnPlayerRes(UnturnedPlayer player, Vector3 position, byte angle)
+        {
+            for (int i = 0; i < Instance.Configuration.Instance._Effects.Count; i++)
+                EffectManager.askEffectClearByID(Instance.Configuration.Instance._Effects[i], player.CSteamID);
         }
 
         public List<UnturnedPlayer> Players()
